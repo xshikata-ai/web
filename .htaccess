@@ -1,0 +1,16 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Aturan baru untuk halaman daftar aktris
+    RewriteRule ^actress/?$ actress_list.php [NC,L,QSA]
+    
+    # Aturan baru untuk halaman detail aktris
+    RewriteRule ^actress/([^/]+)/?$ actress_detail.php?slug=$1 [NC,L,QSA]
+
+    # Aturan yang sudah ada
+    RewriteRule ^videos/?$ videos.php [NC,L,QSA]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^([^/]+)/?$ video.php?slug=$1 [L,QSA]
+</IfModule>
