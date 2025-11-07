@@ -1,3 +1,4 @@
+
 <?php
 // File: video.php
 require_once __DIR__ . '/include/config.php';
@@ -21,8 +22,8 @@ if ($video) {
     $all_embed_servers = array_unique(array_filter($all_embed_servers));
 
     $vh_urls = []; $sw_urls = []; $dd_urls = []; $other_urls = [];
-    $vh_domains = [parse_url(EARNVIDS_EMBED_NEW_DOMAIN, PHP_URL_HOST), 'dingtezuni.com', 'movearnpre.com', 'ryderjet.com'];
-    $sw_domains = [parse_url(STREAMHG_EMBED_NEW_DOMAIN, PHP_URL_HOST), 'dhcplay.com', 'stbhg.click'];
+    $vh_domains = [parse_url(EARNVIDS_EMBED_NEW_DOMAIN, PHP_URL_HOST), 'dintezuvio.com', 'dingtezuni.com', 'movearnpre.com', 'ryderjet.com'];
+    $sw_domains = [parse_url(STREAMHG_EMBED_NEW_DOMAIN, PHP_URL_HOST), 'hglink.to', 'dhcplay.com', 'stbhg.click'];
     
     // --- MODIFIKASI 1: Menambahkan domain vidpply/vidply ke daftar DD ---
     $dd_domains = [parse_url(DOODSTREAM_EMBED_NEW_DOMAIN, PHP_URL_HOST), 'dsvplay.com', 'vidpply.com', 'vidply.com'];
