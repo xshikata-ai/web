@@ -3,7 +3,7 @@
 
 // --- Pengaturan Error Reporting (Aktifkan di Development, Matikan di Production) ---
 error_reporting(E_ALL);
-ini_set('display_errors', 1); // Ganti ke 0 (nol) saat situs live/produksi!
+ini_set('display_errors', 0); // Ganti ke 0 (nol) saat situs live/produksi!
 
 // --- Mulai Sesi PHP (Penting: harus dipanggil sebelum output apapun) ---
 if (session_status() == PHP_SESSION_NONE) {
@@ -11,8 +11,8 @@ if (session_status() == PHP_SESSION_NONE) {
 }
 
 // --- Pengaturan Jalur URL ---
-define('BASE_URL', 'https://stepmomhub.com/'); // UBAH INI! SESUAIKAN DENGAN DOMAIN ROOT ANDA
-define('ADMIN_PATH', BASE_URL . 'admin/');
+define('BASE_URL', 'https://javpornsub.net/'); // UBAH INI! SESUAIKAN DENGAN DOMAIN ROOT ANDA
+define('ADMIN_PATH', BASE_URL . 'hellyeah/');
 define('ASSETS_PATH', BASE_URL . 'assets/');
 
 // --- Definisi Konstanta API Backend ---
@@ -23,7 +23,7 @@ define('EARNVIDS_API_KEY', '38466zfjyydjcz90k2k5o');
 define('EARNVIDS_SEARCH_URL', 'https://search.earnvidsapi.com/files');
 define('EARNVIDS_CLONE_URL_BASE', 'https://earnvidsapi.com/api/file/clone');
 define('EARNVIDS_LIST_URL', 'https://earnvidsapi.com/api/file/list');
-define('EARNVIDS_EMBED_NEW_DOMAIN', 'https://dingtezuni.com');
+define('EARNVIDS_EMBED_NEW_DOMAIN', 'https://hackerdb.org');
 define('EARNVIDS_EMBED_NEW_PATH', '/v/');
 
 // --- Streamhg API Keys & Endpoints ---
@@ -32,7 +32,7 @@ define('STREAMHG_CLONE_API_KEY', '27814i1rpu6ycnk94ugki');
 define('STREAMHG_SEARCH_URL', 'https://search.streamhgapi.com/files');
 define('STREAMHG_CLONE_URL_BASE', 'https://streamhgapi.com/api/file/clone');
 define('STREAMHG_LIST_URL', 'https://streamhgapi.com/api/file/list'); // <-- TAMBAHKAN BARIS INI
-define('STREAMHG_EMBED_NEW_DOMAIN', 'https://gradehgplus.com');
+define('STREAMHG_EMBED_NEW_DOMAIN', 'https://lulzhack.net');
 define('STREAMHG_EMBED_NEW_PATH', '/e/');
 
 // --- Doodstream API Keys & Endpoints ---
@@ -46,9 +46,9 @@ define('DOODSTREAM_EMBED_NEW_PATH', '/e/');
 
 // --- Konfigurasi Database ---
 define('DB_HOST', 'localhost');
-define('DB_USER', 'earnvids_db');
-define('DB_PASS', '58fGjRpyCYsEhHYT');
-define('DB_NAME', 'earnvids_db');
+define('DB_USER', 'javpornsub');
+define('DB_PASS', 'E3RkXa6iCkiZZiST');
+define('DB_NAME', 'javpornsub');
 
 // --- Fungsi Helper: Format Durasi (hh:mm:ss) ---
 function formatDuration($seconds) {
