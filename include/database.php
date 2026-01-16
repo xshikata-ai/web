@@ -412,27 +412,45 @@ function getRelatedVideosByActress($actressString, $excludeId, $limit = 8) {
         return [];
     }
 
-    $whereClauses = [];
+    // --- PERUBAHAN DIMULAI ---
+    $individualActressClauses = [];
     $params = [];
     $types = '';
 
     foreach ($actresses as $actressName) {
-        $whereClauses[] = "v.actresses LIKE ?";
-        $params[] = '%' . $conn->real_escape_string($actressName) . '%';
-        $types .= 's';
+        // Logika pencarian akurat (sama seperti di getVideosByActressName)
+        $exactName = $conn->real_escape_string($actressName);
+        $nameWithCommaStart = $exactName . ', %';        // "Meguri, ..."
+        $nameWithCommaMiddle = '%, ' . $exactName . ', %'; // "..., Meguri, ..."
+        $nameWithCommaEnd = '%, ' . $exactName;          // "..., Meguri"
+
+        // Buat grup klausa untuk satu aktris ini
+        $individualActressClauses[] = "(v.actresses = ? OR v.actresses LIKE ? OR v.actresses LIKE ? OR v.actresses LIKE ?)";
+        
+        // Tambahkan 4 parameter untuk grup ini
+        $params[] = $exactName;
+        $params[] = $nameWithCommaStart;
+        $params[] = $nameWithCommaMiddle;
+        $params[] = $nameWithCommaEnd;
+        $types .= 'ssss'; // 4 string
     }
+    
+    // Gabungkan semua grup klausa aktris dengan 'OR'
+    $whereClause = implode(' OR ', $individualActressClauses);
     
     $sql = "SELECT v.*, c.name as category_name, c.color_hex as category_color 
             FROM videos v
             LEFT JOIN categories c ON v.category_id = c.id
-            WHERE (" . implode(' OR ', $whereClauses) . ") AND v.id != ?
+            WHERE (" . $whereClause . ") AND v.id != ?
             ORDER BY v.cloned_at DESC
             LIMIT ?";
     
+    // Tambahkan parameter untuk excludeId dan limit
     $params[] = $excludeId;
     $types .= 'i';
     $params[] = $limit;
     $types .= 'i';
+    // --- PERUBAHAN SELESAI ---
 
     $stmt = $conn->prepare($sql);
     if ($stmt) {
@@ -1134,15 +1152,31 @@ function getActressBySlug($slug) {
 
 function getVideosByActressName($name, $limit, $offset) {
     $conn = connectDB();
-    $searchTerm = '%' . $conn->real_escape_string($name) . '%';
     
-    $countStmt = $conn->prepare("SELECT COUNT(*) as count FROM videos WHERE actresses LIKE ?");
+    // --- PERUBAHAN DIMULAI ---
+    // Kita akan mencari nama yang tepat, bukan substring
+    $exactName = $conn->real_escape_string($name);
+    $nameWithCommaStart = $exactName . ', %';        // Cocok: "Meguri, Artis Lain"
+    $nameWithCommaMiddle = '%, ' . $exactName . ', %'; // Cocok: "Artis Lain, Meguri, Artis Lain"
+    $nameWithCommaEnd = '%, ' . $exactName;          // Cocok: "Artis Lain, Meguri"
+
+    // Query clause baru yang mencari kecocokan tepat
+    $whereClause = "(v.actresses = ? OR v.actresses LIKE ? OR v.actresses LIKE ? OR v.actresses LIKE ?)";
+    $countWhereClause = "(actresses = ? OR actresses LIKE ? OR actresses LIKE ? OR actresses LIKE ?)";
+    // --- PERUBAHAN SELESAI ---
+
+    $countStmt = $conn->prepare("SELECT COUNT(*) as count FROM videos WHERE " . $countWhereClause);
     if (!$countStmt) {
         error_log("Prepare failed for getVideosByActressName count: " . $conn->error);
         $conn->close();
         return ['videos' => [], 'total' => 0];
     }
-    $countStmt->bind_param("s", $searchTerm);
+    
+    // --- PERUBAHAN DIMULAI ---
+    // Bind 4 parameter string (ssss)
+    $countStmt->bind_param("ssss", $exactName, $nameWithCommaStart, $nameWithCommaMiddle, $nameWithCommaEnd);
+    // --- PERUBAHAN SELESAI ---
+    
     $countStmt->execute();
     $total = $countStmt->get_result()->fetch_assoc()['count'];
     $countStmt->close();
@@ -1150,14 +1184,19 @@ function getVideosByActressName($name, $limit, $offset) {
     $stmt = $conn->prepare("SELECT v.*, c.name as category_name, c.color_hex as category_color 
                             FROM videos v 
                             LEFT JOIN categories c ON v.category_id = c.id 
-                            WHERE v.actresses LIKE ? 
+                            WHERE " . $whereClause . " 
                             ORDER BY v.cloned_at DESC LIMIT ? OFFSET ?");
     if (!$stmt) {
         error_log("Prepare failed for getVideosByActressName data: " . $conn->error);
         $conn->close();
         return ['videos' => [], 'total' => $total];
     }
-    $stmt->bind_param("sii", $searchTerm, $limit, $offset);
+    
+    // --- PERUBAHAN DIMULAI ---
+    // Bind 4 parameter string dan 2 integer (ssssii)
+    $stmt->bind_param("ssssii", $exactName, $nameWithCommaStart, $nameWithCommaMiddle, $nameWithCommaEnd, $limit, $offset);
+    // --- PERUBAHAN SELESAI ---
+    
     $stmt->execute();
     $result = $stmt->get_result();
     $videos = $result->fetch_all(MYSQLI_ASSOC);
