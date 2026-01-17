@@ -121,9 +121,17 @@ require_once __DIR__ . '/templates/header.php';
                 </a>
             <?php endforeach; ?>
         </div>
-    <?php else: ?>
+  <?php else: ?>
         <p>No videos yet.</p>
     <?php endif; ?>
+
+    <div class="load-more-container">
+        <a href="<?php echo BASE_URL; ?>videos?sort=latest" class="btn-load-more">
+            <span>Load more</span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><path d="M184.49,133.66l-48,48a8,8,0,0,1-11.32-11.32L162.69,128l-37.52-37.51a8,8,0,0,1,11.32-11.32l48,48A8,8,0,0,1,184.49,133.66Zm-56-11.32-48-48a8,8,0,0,0-11.32,11.32L106.69,128l-37.52,37.51a8,8,0,0,0,11.32,11.32l48-48A8,8,0,0,0,128.49,122.34Z"></path></svg>
+        </a>
+    </div>
+
 </section>
 
 <section class="video-section">
@@ -179,6 +187,14 @@ require_once __DIR__ . '/templates/header.php';
     <?php else: ?>
         <p>Popular video data is not yet available.</p>
     <?php endif; ?>
+
+    <div class="load-more-container">
+        <a href="<?php echo BASE_URL; ?>videos?sort=views" class="btn-load-more">
+            <span>Load more</span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><path d="M184.49,133.66l-48,48a8,8,0,0,1-11.32-11.32L162.69,128l-37.52-37.51a8,8,0,0,1,11.32-11.32l48,48A8,8,0,0,1,184.49,133.66Zm-56-11.32-48-48a8,8,0,0,0-11.32,11.32L106.69,128l-37.52,37.51a8,8,0,0,0,11.32,11.32l48-48A8,8,0,0,0,128.49,122.34Z"></path></svg>
+        </a>
+    </div>
+
 </section>
 
 <?php require_once __DIR__ . '/templates/footer.php'; ?>
