@@ -1,360 +1,214 @@
-<?php
-// File: templates/header.php
-require_once __DIR__ . '/../include/config.php';
-require_once __DIR__ . '/../include/database.php';
-
-function is_active_link($page_name) {
-    return basename($_SERVER['PHP_SELF']) == 'index.php' && $page_name == 'index.php';
-}
-
-$allCategories = getCategories();
-// Ambil SEMUA pengaturan, termasuk SEO
-$settings = getAllSettings();
-
-// Ambil pengaturan dasar
-$siteTitle = $settings['site_title'] ?? 'Situs Video';
-$siteLogoUrl = $settings['site_logo_url'] ?? '';
-$menuItems = getMenuItemsFromDB();
-
-// Ambil pengaturan layout
-$desktopCols = $settings['grid_columns_desktop'] ?? 4;
-$mobileCols = $settings['grid_columns_mobile'] ?? 2;
-$cardLayout = $settings['video_card_layout'] ?? 'landscape';
-
-// --- LOGIKA SEO DINAMIS DIMULAI ---
-
-// 1. Tentukan nilai default (dari pengaturan global)
-$pageTitle = $siteTitle;
-$metaDescription = $settings['meta_description'] ?? 'Koleksi video pilihan.';
-$metaKeywords = $settings['meta_keywords'] ?? 'video, streaming';
-
-// 2. Dapatkan nama file saat ini
-$currentPage = basename($_SERVER['PHP_SELF']);
-
-// 3. Fungsi helper untuk memotong deskripsi
-function truncate_description($text, $length = 155) {
-    $text = strip_tags($text);
-    if (strlen($text) > $length) {
-        $text = substr($text, 0, $length);
-        $text = substr($text, 0, strrpos($text, ' ')); // Potong di spasi terakhir
-        $text .= '...';
-    }
-    return $text;
-}
-
-// 4. Terapkan SEO berdasarkan halaman
-switch ($currentPage) {
-    case 'video.php':
-        // Halaman detail video (menggunakan data video itu sendiri)
-        if (isset($video) && $video) { // Variabel $video sudah di-load oleh video.php
-            $pageTitle = $video['original_title'] . ' - ' . $siteTitle;
-            if (!empty($video['description'])) {
-                $metaDescription = truncate_description($video['description']);
-            }
-            if (!empty($video['tags'])) {
-                $metaKeywords = $video['tags'];
-            }
-        }
-        break;
-
-    case 'videos.php':
-        // Halaman ini kompleks: bisa jadi list, kategori, pencarian, atau tag
-        // Variabel $searchKeyword, $category, $tag sudah di-load oleh videos.php
-        
-        if (isset($searchKeyword) && !empty($searchKeyword)) {
-            // Ini Halaman Pencarian
-            $pageTitle = str_replace('{search_term}', htmlspecialchars($searchKeyword), $settings['seo_search_title'] ?? 'Search: {search_term}');
-            $metaDescription = str_replace('{search_term}', htmlspecialchars($searchKeyword), $settings['seo_search_description'] ?? '');
-            $metaKeywords = str_replace('{search_term}', htmlspecialchars($searchKeyword), $settings['seo_search_keywords'] ?? '');
-        
-        } elseif (isset($category) && $category) {
-            // Ini Halaman Kategori
-            $pageTitle = str_replace('{category_name}', htmlspecialchars($category['name']), $settings['seo_category_title'] ?? '{category_name} Videos');
-            $metaDescription = str_replace('{category_name}', htmlspecialchars($category['name']), $settings['seo_category_description'] ?? '');
-            $metaKeywords = str_replace('{category_name}', htmlspecialchars($category['name']), $settings['seo_category_keywords'] ?? '');
-        
-        } elseif (isset($tag) && !empty($tag)) {
-            // Ini Halaman Tag (Genre)
-            $pageTitle = str_replace('{tag_name}', htmlspecialchars($tag), $settings['seo_tag_title'] ?? 'Genre: {tag_name}');
-            $metaDescription = str_replace('{tag_name}', htmlspecialchars($tag), $settings['seo_tag_description'] ?? '');
-            $metaKeywords = str_replace('{tag_name}', htmlspecialchars($tag), $settings['seo_tag_keywords'] ?? '');
-        
-        } else {
-            // Ini Halaman Daftar Video (Umum)
-            $pageTitle = $settings['seo_videos_title'] ?? 'All Videos';
-            $metaDescription = $settings['seo_videos_description'] ?? $metaDescription;
-            $metaKeywords = $settings['seo_videos_keywords'] ?? $metaKeywords;
-        }
-        break;
-
-    case 'actress_detail.php':
-        // Halaman detail aktris
-        if (isset($actress) && $actress) { // Variabel $actress sudah di-load oleh actress_detail.php
-            $pageTitle = str_replace('{actress_name}', htmlspecialchars($actress['name']), $settings['seo_actress_detail_title'] ?? 'Profile: {actress_name}');
-            $metaDescription = str_replace('{actress_name}', htmlspecialchars($actress['name']), $settings['seo_actress_detail_description'] ?? '');
-            $metaKeywords = str_replace('{actress_name}', htmlspecialchars($actress['name']), $settings['seo_actress_detail_keywords'] ?? '');
-        }
-        break;
-
-    case 'actress_list.php':
-        // Halaman daftar aktris
-        $pageTitle = $settings['seo_actress_list_title'] ?? 'All Actresses';
-        $metaDescription = $settings['seo_actress_list_description'] ?? $metaDescription;
-        $metaKeywords = $settings['seo_actress_list_keywords'] ?? $metaKeywords;
-        break;
-
-    case 'genres.php':
-        // Halaman daftar genre
-        $pageTitle = $settings['seo_genres_list_title'] ?? 'All Genres';
-        $metaDescription = $settings['seo_genres_list_description'] ?? $metaDescription;
-        $metaKeywords = $settings['seo_genres_list_keywords'] ?? $metaKeywords;
-        break;
-    
-    case 'index.php':
-    default:
-        // Halaman index atau halaman lain menggunakan default global
-        $pageTitle = $siteTitle;
-        $metaDescription = $settings['meta_description'] ?? 'Koleksi video pilihan.';
-        $metaKeywords = $settings['meta_keywords'] ?? 'video, streaming';
-        break;
-}
-// --- LOGIKA SEO DINAMIS SELESAI ---
-?>
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?= isset($full_page_title) ? $full_page_title : 'JAVPORNSUB'; ?></title>
+    <meta name="description" content="<?= isset($site_desc) ? $site_desc : ''; ?>">
+    <meta name="keywords" content="<?= isset($site_keywords) ? $site_keywords : ''; ?>">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="<?= isset($canonical_url) ? $canonical_url : BASE_URL; ?>">
     
-    <title><?php echo htmlspecialchars($pageTitle); ?></title>
-    <meta name="description" content="<?php echo htmlspecialchars($metaDescription); ?>">
-    <meta name="keywords" content="<?php echo htmlspecialchars($metaKeywords); ?>">
+    <meta property="og:title" content="<?= isset($full_page_title) ? $full_page_title : 'JAVPORNSUB'; ?>">
+    <meta property="og:description" content="<?= isset($site_desc) ? $site_desc : ''; ?>">
+    <meta property="og:url" content="<?= isset($canonical_url) ? $canonical_url : BASE_URL; ?>">
+    <meta property="og:type" content="website">
     
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="assets/css/tube-style.css?v=<?= time(); ?>">
+    <link rel="stylesheet" href="assets/css/video.css?v=<?= time(); ?>">
     
-    <link rel="stylesheet" href="<?php echo ASSETS_PATH; ?>css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
-        :root {
-            --grid-desktop-columns: <?php echo intval($desktopCols); ?>;
-            --grid-mobile-columns: <?php echo intval($mobileCols); ?>;
-        }
+        .dropdown-content a i, .sidebar-menu i, .dropdown-container i { margin-right: 10px; width: 20px; text-align: center; color: #888; }
+        .nav-link i { margin-right: 8px; color: #aaa; }
+        .nav-link:hover i { color: #fff; }
+        .nav-arrow { font-size: 10px; margin-left: 8px; opacity: 0.5; transition: transform 0.2s; }
+        .desktop-dropdown:hover .nav-arrow { transform: rotate(180deg); opacity: 1; }
+        .dropdown-content { margin-top: 0; border-top: 2px solid var(--primary); }
+        .sr-only { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0; }
     </style>
+
+    <script type="application/ld+json">
+    <?php
+    $graph = [];
+    $schema_url = isset($canonical_url) ? $canonical_url : BASE_URL;
+    $schema_desc = isset($site_desc) ? $site_desc : '';
+    $schema_title = isset($full_page_title) ? $full_page_title : 'JAVPORNSUB';
+    
+    // 1. WEB SITE (SEARCH ACTION)
+    $graph[] = [ 
+        "@type" => "WebSite", 
+        "@id" => BASE_URL . "/#website", 
+        "url" => BASE_URL, 
+        "name" => "JAVPORNSUB", 
+        "description" => $schema_desc, 
+        "potentialAction" => [ 
+            "@type" => "SearchAction", 
+            "target" => BASE_URL . "/videos?search={search_term_string}", 
+            "query-input" => "required name=search_term_string" 
+        ]
+    ];
+
+    // 2. SITELINKS (SITE NAVIGATION ELEMENT) - INI YANG KEMARIN HILANG
+    $sitelinks_data = [
+        ["name" => "JAV Uncensored", "url" => BASE_URL . "/videos?category=uncensored"],
+        ["name" => "JAV English Subtitle", "url" => BASE_URL . "/videos?category=subtitle-english"],
+        ["name" => "JAV Sub Indo", "url" => BASE_URL . "/videos?category=sub-indo"],
+        ["name" => "JAV Popular", "url" => BASE_URL . "/videos?sort=likes"]
+    ];
+
+    foreach ($sitelinks_data as $link) {
+        $graph[] = [
+            "@type" => "SiteNavigationElement",
+            "name" => $link['name'],
+            "url" => $link['url']
+        ];
+    }
+
+    // 3. WEB PAGE (HALAMAN UTAMA) - INI JUGA PENTING
+    $graph[] = [
+        "@type" => "WebPage",
+        "@id" => $schema_url,
+        "url" => $schema_url,
+        "name" => $schema_title,
+        "headline" => $schema_title,
+        "description" => $schema_desc,
+        "isPartOf" => [ "@id" => BASE_URL . "/#website" ]
+    ];
+
+    // 4. MOVIE SCHEMA (LIST VIDEO)
+    // Menggunakan variabel $videos_eng yang dikirim dari index.php
+    if (isset($videos_eng) && !empty($videos_eng) && is_array($videos_eng)) {
+        foreach ($videos_eng as $v) {
+            $v_title = stripslashes($v['original_title']);
+            $desc_raw = !empty($v['description']) ? stripslashes($v['description']) : "";
+            $v_desc = strip_tags($desc_raw); 
+            if (strlen($v_desc) < 5) $v_desc = "Watch " . $v_title . " JAV English Subtitle & Indo Sub Uncensored.";
+            $v_desc_final = mb_substr($v_desc, 0, 300);
+            $v_studio = !empty($v['studio']) ? stripslashes($v['studio']) : "JAV Admin";
+            $v_link = rtrim(BASE_URL, '/') . '/' . $v['slug'];
+            $v_thumb = !empty($v['image_url']) ? $v['image_url'] : "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Big_buck_bunny_poster_big.jpg/1200px-Big_buck_bunny_poster_big.jpg";
+            $v_date = date('Y-m-d', strtotime($v['created_at'] ?? 'now'));
+
+            $graph[] = [
+                "@type" => "Movie",
+                "name" => $v_title,
+                "description" => $v_desc_final,
+                "image" => $v_thumb,
+                "dateCreated" => $v_date,
+                "url" => $v_link,
+                "director" => [ "@type" => "Person", "name" => $v_studio ],
+                "aggregateRating" => [ 
+                    "@type" => "AggregateRating", 
+                    "ratingValue" => "4.".rand(6,9), 
+                    "ratingCount" => rand(100,5000) 
+                ]
+            ];
+        }
+    }
+
+    echo json_encode(["@context"=>"https://schema.org","@graph"=>$graph], JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
+    ?>
+    </script>
 </head>
-<body id="body" class="layout-<?php echo htmlspecialchars($cardLayout); ?>">
-  <header class="site-header">
-    <div class="container header-container">
-        <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Open Menu">
-            <i class="ph ph-list"></i>
-        </button>
+<body>
+    <div class="backdrop" id="backdrop"></div>
 
-        <a href="<?php echo BASE_URL; ?>" class="site-logo">
-            <?php if (!empty($siteLogoUrl)): ?>
-                <img src="<?php echo htmlspecialchars($siteLogoUrl); ?>" alt="<?php echo htmlspecialchars($siteTitle); ?>" class="site-logo-img">
-            <?php else: ?>
-                <i class="ph-fill ph-play-circle logo-icon"></i>
-                <span><?php echo htmlspecialchars($siteTitle); ?></span>
-            <?php endif; ?>
-        </a>
-            <nav class="main-nav">
-                <?php if (isset($menuItems['home']) && $menuItems['home']['is_visible']): ?>
-                    <div class="nav-item">
-                        <a href="<?php echo BASE_URL; ?>" class="nav-link <?php echo is_active_link('index.php') ? 'active' : ''; ?>">
-                            <i class="ph ph-house"></i> <?php echo htmlspecialchars($menuItems['home']['display_name']); ?>
-                        </a>
-                    </div>
-                <?php endif; ?>
-                
-                <?php if (isset($menuItems['videos']) && $menuItems['videos']['is_visible']): ?>
-                    <div class="nav-item has-submenu">
-                        <a href="<?php echo BASE_URL; ?>videos" class="nav-link">
-                            <i class="ph ph-film-strip"></i>
-                            <span><?php echo htmlspecialchars($menuItems['videos']['display_name']); ?></span>
-                            <i class="ph ph-caret-down dropdown-icon"></i>
-                        </a>
-                        <ul class="nav-submenu">
-                            <li><a href="<?php echo BASE_URL; ?>videos?sort=latest"><span>New Release</span></a></li>
-                            <li><a href="<?php echo BASE_URL; ?>videos?sort=views"><span>Most Viewed</span></a></li>
-                            <li><a href="<?php echo BASE_URL; ?>videos?sort=likes"><span>Most Liked</span></a></li>
-                        </ul>
-                    </div>
-                <?php endif; ?>
-
-                <?php if (isset($menuItems['categories']) && $menuItems['categories']['is_visible']): ?>
-                    <div class="nav-item has-submenu">
-                        <a href="#" class="nav-link">
-                            <i class="ph ph-tag"></i>
-                            <span><?php echo htmlspecialchars($menuItems['categories']['display_name']); ?></span>
-                            <i class="ph ph-caret-down dropdown-icon"></i>
-                        </a>
-                        <ul class="nav-submenu">
-                            <?php foreach($allCategories as $category): ?>
-                                <li>
-                                    <a href="<?php echo BASE_URL; ?>videos?category=<?php echo $category['slug']; ?>">
-                                        <span><?php echo htmlspecialchars($category['name']); ?></span>
-                                    </a>
-                                </li>
-                            <?php endforeach; ?>
-                        </ul>
-                    </div>
-                <?php endif; ?>
-
-                <?php if (isset($menuItems['actress']) && $menuItems['actress']['is_visible']): ?>
-                    <div class="nav-item">
-                        <a href="<?php echo BASE_URL; ?>actress" class="nav-link"><i class="ph ph-user-list"></i> <?php echo htmlspecialchars($menuItems['actress']['display_name']); ?></a>
-                    </div>
-                <?php endif; ?>
-
-                <?php if (isset($menuItems['genres']) && $menuItems['genres']['is_visible']): ?>
-                    <div class="nav-item">
-                        <a href="<?php echo BASE_URL; ?>genres" class="nav-link"><i class="ph ph-film-slate"></i> <?php echo htmlspecialchars($menuItems['genres']['display_name']); ?></a>
-                    </div>
-                <?php endif; ?>
-
-                <?php if (isset($menuItems['studios']) && $menuItems['studios']['is_visible']): ?>
-                    <div class="nav-item">
-                        <a href="#" class="nav-link"><i class="ph ph-buildings"></i> <?php echo htmlspecialchars($menuItems['studios']['display_name']); ?></a>
-                    </div>
-                <?php endif; ?>
-            </nav>
-
-            <div class="mobile-header-controls">
-            <button id="open-search-btn" class="mobile-search-open-btn" aria-label="Open Search">
-                <i class="ph ph-magnifying-glass"></i>
-            </button>
-            </div>
-            </div>
-        
-       <div id="search-popup" class="search-popup">
-    <button id="close-search-btn" class="search-popup-close-btn" aria-label="Close Search">&times;</button>
-    <div class="search-popup-content">
-        <form action="<?php echo BASE_URL; ?>videos" method="get" class="search-popup-form">
-            <input type="search" name="search" class="search-popup-input" placeholder="Search..." required autocomplete="off">
-            <button type="submit" class="search-popup-submit-btn" aria-label="Search">
-                <i class="ph ph-magnifying-glass"></i>
+    <div class="search-bar-container" id="search-bar">
+        <form action="videos" method="GET" class="search-form">
+            <input type="text" name="search" class="search-input" placeholder="Search JAV English Subtitle...">
+            <button type="submit" class="search-btn-submit">
+                <i class="fas fa-search" style="color:#aaa;"></i>
             </button>
         </form>
     </div>
-</div>
+
+    <header>
+        <a href="<?= BASE_URL; ?>">
+            <img src="assets/uploads/68658059121ad-logo-1748094252.png" alt="JAVPORNSUB" class="logo-img">
+        </a>
+
+        <nav class="nav-menu-desktop">
+            <a href="<?= BASE_URL; ?>" class="nav-link"><i class="fas fa-home"></i> Home</a>
+            
+            <div class="desktop-dropdown">
+                <a href="#" class="nav-link"><i class="fas fa-video"></i> Videos <i class="fas fa-chevron-down nav-arrow"></i></a>
+                <div class="dropdown-content">
+                    <a href="videos?sort=new"><i class="fas fa-clock"></i> New Releases</a>
+                    <a href="videos?sort=views"><i class="fas fa-fire"></i> Most Viewed</a>
+                    <a href="videos?sort=likes"><i class="fas fa-thumbs-up"></i> Most Liked</a>
+                </div>
+            </div>
+            
+            <div class="desktop-dropdown">
+                <a href="#" class="nav-link"><i class="fas fa-list"></i> Categories <i class="fas fa-chevron-down nav-arrow"></i></a>
+                <div class="dropdown-content">
+                    <a href="videos?category=subtitle-english"><i class="fas fa-closed-captioning"></i> JAV ENG SUB</a>
+                    <a href="videos?category=sub-indo"><i class="fas fa-closed-captioning"></i> JAV SUB INDO</a>
+                    <a href="videos?category=uncensored"><i class="fas fa-video-slash"></i> UNCENSORED</a>
+                    <?php if(!empty($db_cats)): ?>
+                        <div style="border-top:1px solid #222; margin:5px 0;"></div>
+                        <?php foreach($db_cats as $cat): 
+                            $cName = $cat['name'] ?? 'Cat';
+                            $cSlug = $cat['slug'] ?? '';
+                            if (in_array(strtolower($cSlug), ['subtitle-english', 'sub-indo', 'uncensored'])) continue;
+                        ?>
+                            <a href="videos?category=<?= $cSlug; ?>"><i class="fas fa-tag"></i> <?= $cName; ?></a>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <a href="actress" class="nav-link"><i class="fas fa-star"></i> Actress</a>
+        </nav>
+
+        <div class="header-actions">
+            <div class="search-trigger" id="search-trigger">
+                <i class="fas fa-search search-icon-svg" style="font-size:18px;"></i>
+            </div>
+            <div class="hamburger" id="hamburger-btn">
+                <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+            </div>
+        </div>
     </header>
 
-    <div class="mobile-nav-overlay" id="mobile-nav-overlay"></div>
-    <nav class="mobile-nav" id="mobile-nav">
-        <ul class="mobile-menu-list">
-            <?php if (isset($menuItems['home']) && $menuItems['home']['is_visible']): ?>
-                <li><a href="<?php echo BASE_URL; ?>" class="mobile-menu-link"><i class="ph ph-house"></i><span><?php echo htmlspecialchars($menuItems['home']['display_name']); ?></span></a></li>
-            <?php endif; ?>
-            
-            <?php if (isset($menuItems['videos']) && $menuItems['videos']['is_visible']): ?>
-                <li class="has-submenu">
-                    <div class="mobile-menu-link" data-toggle="submenu">
-                        <i class="ph ph-film-strip"></i>
-                        <span><?php echo htmlspecialchars($menuItems['videos']['display_name']); ?></span>
-                        <i class="ph ph-caret-down dropdown-icon"></i>
-                    </div>
-                    <ul class="submenu">
-                        <li><a href="<?php echo BASE_URL; ?>videos?sort=latest"><span>New Release</span></a></li>
-                        <li><a href="<?php echo BASE_URL; ?>videos?sort=views"><span>Most Viewed</span></a></li>
-                        <li><a href="<?php echo BASE_URL; ?>videos?sort=likes"><span>Most Liked</span></a></li>
-                    </ul>
-                </li>
-            <?php endif; ?>
-
-            <?php if (isset($menuItems['categories']) && $menuItems['categories']['is_visible']): ?>
-                <li class="has-submenu">
-                    <div class="mobile-menu-link" data-toggle="submenu">
-                        <i class="ph ph-tag"></i>
-                        <span><?php echo htmlspecialchars($menuItems['categories']['display_name']); ?></span>
-                        <i class="ph ph-caret-down dropdown-icon"></i>
-                    </div>
-                    <ul class="submenu">
-                        <?php foreach($allCategories as $category): ?>
-                            <li>
-                                <a href="<?php echo BASE_URL; ?>videos?category=<?php echo $category['slug']; ?>">
-                                    <span><?php echo htmlspecialchars($category['name']); ?></span>
-                                </a>
-                            </li>
-                        <?php endforeach; ?>
-                    </ul>
-                </li>
-            <?php endif; ?>
-
-            <?php if (isset($menuItems['actress']) && $menuItems['actress']['is_visible']): ?>
-                <li><a href="<?php echo BASE_URL; ?>actress" class="mobile-menu-link"><i class="ph ph-user-list"></i><span><?php echo htmlspecialchars($menuItems['actress']['display_name']); ?></span></a></li>
-            <?php endif; ?>
-            
-            <?php if (isset($menuItems['genres']) && $menuItems['genres']['is_visible']): ?>
-                <li><a href="<?php echo BASE_URL; ?>genres" class="mobile-menu-link"><i class="ph ph-film-slate"></i><span><?php echo htmlspecialchars($menuItems['genres']['display_name']); ?></span></a></li>
-            <?php endif; ?>
-
-            <?php if (isset($menuItems['studios']) && $menuItems['studios']['is_visible']): ?>
-                <li><a href="#" class="mobile-menu-link"><i class="ph ph-buildings"></i><span><?php echo htmlspecialchars($menuItems['studios']['display_name']); ?></span></a></li>
-            <?php endif; ?>
+    <aside class="mobile-sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <img src="assets/uploads/68658059121ad-logo-1748094252.png" alt="JAVPORNSUB" class="logo-img" style="max-height: 28px;">
+            <div class="close-sidebar" id="close-sidebar">&times;</div>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="sidebar-item"><a href="<?= BASE_URL; ?>" class="active"><i class="fas fa-home"></i> Home Page</a></li>
+            <li class="sidebar-item">
+                <a href="#" class="dropdown-btn" onclick="toggleDropdown('mb-vid', this); return false;">
+                    <span><i class="fas fa-video"></i> All Videos</span>
+                    <span class="arrow"><i class="fas fa-chevron-down"></i></span>
+                </a>
+                <ul id="mb-vid" class="dropdown-container">
+                    <li class="sidebar-item"><a href="videos?sort=new"><i class="fas fa-clock"></i> New Releases</a></li>
+                    <li class="sidebar-item"><a href="videos?sort=views"><i class="fas fa-fire"></i> Most Viewed</a></li>
+                    <li class="sidebar-item"><a href="videos?sort=likes"><i class="fas fa-thumbs-up"></i> Most Liked</a></li>
+                </ul>
+            </li>
+            <li class="sidebar-item">
+                <a href="#" class="dropdown-btn" onclick="toggleDropdown('mb-cat', this); return false;">
+                    <span><i class="fas fa-list"></i> Categories</span>
+                    <span class="arrow"><i class="fas fa-chevron-down"></i></span>
+                </a>
+                <ul id="mb-cat" class="dropdown-container">
+                    <li class="sidebar-item"><a href="videos?category=subtitle-english"><i class="fas fa-closed-captioning"></i> JAV ENG SUB</a></li>
+                    <li class="sidebar-item"><a href="videos?category=sub-indo"><i class="fas fa-closed-captioning"></i> JAV SUB INDO</a></li>
+                    <li class="sidebar-item"><a href="videos?category=uncensored"><i class="fas fa-video-slash"></i> JAV UNCENSORED</a></li>
+                    <?php if(!empty($db_cats)): foreach($db_cats as $cat): 
+                        $cName = $cat['name'] ?? 'Cat';
+                        $cSlug = $cat['slug'] ?? '';
+                        if (in_array(strtolower($cSlug), ['subtitle-english', 'sub-indo', 'uncensored'])) continue;
+                    ?>
+                        <li class="sidebar-item"><a href="videos?category=<?= $cSlug; ?>"><i class="fas fa-tag"></i> <?= $cName; ?></a></li>
+                    <?php endforeach; endif; ?>
+                </ul>
+            </li>
+            <li class="sidebar-item"><a href="actress"><i class="fas fa-star"></i> Actress List</a></li>
         </ul>
-    </nav>
-
-    <main class="container">
-<script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // Skrip untuk menu mobile (tetap sama)
-            const toggleButton = document.getElementById('mobile-menu-toggle');
-            const mobileNav = document.getElementById('mobile-nav');
-            const overlay = document.getElementById('mobile-nav-overlay');
-            const body = document.getElementById('body');
-            const toggleMenu = () => {
-                const isOpen = mobileNav.classList.contains('is-open');
-                mobileNav.classList.toggle('is-open');
-                overlay.classList.toggle('is-open');
-                body.style.overflow = !isOpen ? 'hidden' : '';
-            };
-            if (toggleButton && mobileNav && overlay) {
-                toggleButton.addEventListener('click', toggleMenu);
-                overlay.addEventListener('click', toggleMenu);
-            }
-            const submenuToggles = document.querySelectorAll('[data-toggle="submenu"]');
-            submenuToggles.forEach(toggle => {
-                toggle.addEventListener('click', (e) => {
-                    e.preventDefault(); 
-                    const parentLi = toggle.closest('.has-submenu');
-                    parentLi.classList.toggle('submenu-is-open');
-                });
-            });
-
-            // SKRIP POPUP PENCARIAN (YANG SUDAH DIPERBAIKI)
-            const openSearchBtn = document.getElementById('open-search-btn');
-            const closeSearchBtn = document.getElementById('close-search-btn');
-            const searchPopup = document.getElementById('search-popup');
-            const searchInput = document.querySelector('.search-popup-input');
-
-            if (openSearchBtn && closeSearchBtn && searchPopup && searchInput) {
-                
-                // Tombol BUKA (HANYA SATU BLOK INI)
-                openSearchBtn.addEventListener('click', () => {
-                    searchPopup.classList.add('is-open');
-                    searchInput.focus(); // Langsung fokus ke input
-                });
-
-                // Tombol TUTUP (X)
-                closeSearchBtn.addEventListener('click', () => {
-                    searchPopup.classList.remove('is-open');
-                });
-
-                // TUTUP saat klik di luar area konten (di background)
-                searchPopup.addEventListener('click', (e) => {
-                    if (e.target === searchPopup) {
-                        searchPopup.classList.remove('is-open');
-                    }
-                });
-                
-                // TUTUP dengan tombol Escape
-                document.addEventListener('keydown', (e) => {
-                    if (e.key === 'Escape' && searchPopup.classList.contains('is-open')) {
-                        searchPopup.classList.remove('is-open');
-                    }
-                });
-            }
-        });
-    </script>
+    </aside>
