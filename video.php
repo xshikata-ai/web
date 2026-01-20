@@ -1,5 +1,5 @@
 <?php
-// File: video.php (TITLE FIX: EXACT ORIGINAL TITLE)
+// File: video.php
 require_once __DIR__ . '/include/config.php';
 require_once __DIR__ . '/include/database.php';
 
@@ -23,7 +23,7 @@ if (!$video) {
     exit;
 }
 
-// --- 2. FUNGSI BANTUAN SEO ---
+// --- 2. FUNGSI BANTUAN SEO & UTILS ---
 if (!function_exists('seo_absolute_url')) {
     function seo_absolute_url($path) {
         if (empty($path)) return BASE_URL . 'assets/img/no-thumb.jpg';
@@ -48,23 +48,42 @@ if (!function_exists('extract_video_code_clean')) {
         return null; 
     }
 }
+// [BARU] Fungsi Otomatis Deteksi URL Akhir (Follow Redirect)
+if (!function_exists('get_final_redirect_url')) {
+    function get_final_redirect_url($url) {
+        // Hanya proses jika URL valid
+        if (!filter_var($url, FILTER_VALIDATE_URL)) return $url;
+
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_NOBODY, true);         // Hanya ambil Header (Cepat)
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true); // Ikuti Redirect otomatis
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 3);           // Timeout 3 detik agar loading tidak lama
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+        curl_exec($ch);
+        
+        $target = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+        curl_close($ch);
+
+        // Kembalikan URL baru jika ditemukan, jika gagal pakai URL lama
+        return $target ? $target : $url;
+    }
+}
 
 // --- 3. KONFIGURASI JUDUL & SEO ---
 $raw_title = $video['original_title'];
 $detected_code = extract_video_code_clean($raw_title);
 
-// A. JUDUL HALAMAN (KEMBALI KE ASLI SESUAI REQUEST)
-// Menggunakan Judul Asli dari Database tanpa modifikasi regex
+// A. JUDUL HALAMAN
 $full_page_title = $raw_title . " - JAVPORNSUB";
 
-// B. BREADCRUMB (Tetap menggunakan Kode agar rapi)
+// B. BREADCRUMB
 $breadcrumb_name = $detected_code ? $detected_code : "Watch Video";
 
-// C. META DESCRIPTION (Full Content)
-// Mengambil deskripsi full tanpa pemotongan
+// C. META DESCRIPTION
 $site_desc = !empty($video['description']) ? strip_tags($video['description']) : $raw_title;
 
-// D. KEYWORDS (Tetap dioptimalkan untuk SEO)
+// D. KEYWORDS
 $actress_list = !empty($video['actresses']) ? $video['actresses'] : '';
 $base_keywords = "jav sub indo, jav english sub, streaming jav, nonton jav";
 if ($detected_code) {
@@ -76,7 +95,7 @@ if ($detected_code) {
 $ogImage = seo_absolute_url($video['image_url']);
 $canonical_url = BASE_URL . $video['slug'];
 
-// --- 4. LOGIKA SERVER ---
+// --- 4. LOGIKA SERVER (DENGAN AUTO FIX DOODSTREAM) ---
 $sorted_servers = [];
 if ($video) {
     $all_urls = [];
@@ -91,14 +110,46 @@ if ($video) {
     $vh = []; $sw = []; $dd = []; $others = [];
     $vh_dom = ['earnvids', 'dintezuvio', 'dingtezuni'];
     $sw_dom = ['streamhg', 'hglink', 'gradehplus'];
-    $dd_dom = ['dood', 'dsvplay', 'vidpply'];
+    
+    // Daftar semua kemungkinan domain Doodstream (Lama & Baru)
+    $dd_dom = ['dood', 'dsvplay', 'vidpply', 'myvidplay', 'd000d', 'ds2play', 'dooood'];
 
     foreach ($all_urls as $url) {
         $h = strtolower(parse_url($url, PHP_URL_HOST));
         $found = false;
-        foreach($vh_dom as $d) { if(strpos($h,$d)!==false){ $vh[]=$url; $found=true; break; }} if($found) continue;
-        foreach($sw_dom as $d) { if(strpos($h,$d)!==false){ $sw[]=$url; $found=true; break; }} if($found) continue;
-        foreach($dd_dom as $d) { if(strpos($h,$d)!==false){ $dd[]=$url; $found=true; break; }} if($found) continue;
+
+        // 1. Cek Server Vh
+        foreach($vh_dom as $d) { 
+            if(strpos($h,$d)!==false){ 
+                $vh[]=$url; 
+                $found=true; 
+                break; 
+            }
+        } 
+        if($found) continue;
+
+        // 2. Cek Server Sw
+        foreach($sw_dom as $d) { 
+            if(strpos($h,$d)!==false){ 
+                $sw[]=$url; 
+                $found=true; 
+                break; 
+            }
+        } 
+        if($found) continue;
+
+        // 3. Cek Server Doodstream (DENGAN AUTO RESOLVE)
+        foreach($dd_dom as $d) { 
+            if(strpos($h,$d)!==false){ 
+                // Panggil fungsi untuk mendapatkan URL domain terbaru secara otomatis
+                $dd[] = get_final_redirect_url($url); 
+                $found=true; 
+                break; 
+            }
+        } 
+        if($found) continue;
+
+        // 4. Server Lainnya
         $others[] = $url;
     }
     $sorted_servers = array_merge($vh, $sw, $dd, $others);
