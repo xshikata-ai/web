@@ -15,7 +15,7 @@
     <meta property="og:type" content="website">
     
     <link rel="stylesheet" href="assets/css/tube-style.css?v=<?= time(); ?>">
-    <link rel="stylesheet" href="assets/css/video.css?v=<?= time(); ?>">
+
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -32,30 +32,31 @@
     <script type="application/ld+json">
     <?php
     $graph = [];
-    $schema_url = isset($canonical_url) ? $canonical_url : BASE_URL;
+    $base_url_clean = rtrim(BASE_URL, '/');
+    $schema_url = isset($canonical_url) ? $canonical_url : $base_url_clean;
     $schema_desc = isset($site_desc) ? $site_desc : '';
     $schema_title = isset($full_page_title) ? $full_page_title : 'JAVPORNSUB';
     
-    // 1. WEB SITE (SEARCH ACTION)
+    // 1. WEB SITE
     $graph[] = [ 
         "@type" => "WebSite", 
-        "@id" => BASE_URL . "/#website", 
-        "url" => BASE_URL, 
+        "@id" => $base_url_clean . "/#website", 
+        "url" => $base_url_clean, 
         "name" => "JAVPORNSUB", 
-        "description" => $schema_desc, 
+        "description" => "Watch JAV English Subtitle & JAV Sub Indo Free", 
         "potentialAction" => [ 
             "@type" => "SearchAction", 
-            "target" => BASE_URL . "/videos?search={search_term_string}", 
+            "target" => $base_url_clean . "/videos?search={search_term_string}", 
             "query-input" => "required name=search_term_string" 
         ]
     ];
 
-    // 2. SITELINKS (SITE NAVIGATION ELEMENT) - INI YANG KEMARIN HILANG
+    // 2. SITELINKS
     $sitelinks_data = [
-        ["name" => "JAV Uncensored", "url" => BASE_URL . "/videos?category=uncensored"],
-        ["name" => "JAV English Subtitle", "url" => BASE_URL . "/videos?category=subtitle-english"],
-        ["name" => "JAV Sub Indo", "url" => BASE_URL . "/videos?category=sub-indo"],
-        ["name" => "JAV Popular", "url" => BASE_URL . "/videos?sort=likes"]
+        ["name" => "JAV Uncensored", "url" => $base_url_clean . "/videos?category=uncensored"],
+        ["name" => "JAV English Subtitle", "url" => $base_url_clean . "/videos?category=subtitle-english"],
+        ["name" => "JAV Sub Indo", "url" => $base_url_clean . "/videos?category=sub-indo"],
+        ["name" => "JAV Popular", "url" => $base_url_clean . "/videos?sort=likes"]
     ];
 
     foreach ($sitelinks_data as $link) {
@@ -66,39 +67,109 @@
         ];
     }
 
-    // 3. WEB PAGE (HALAMAN UTAMA) - INI JUGA PENTING
-    $graph[] = [
+    // 3. WEB PAGE
+    $web_page_schema = [
         "@type" => "WebPage",
         "@id" => $schema_url,
         "url" => $schema_url,
         "name" => $schema_title,
         "headline" => $schema_title,
         "description" => $schema_desc,
-        "isPartOf" => [ "@id" => BASE_URL . "/#website" ]
+        "isPartOf" => [ "@id" => $base_url_clean . "/#website" ]
     ];
 
-    // 4. MOVIE SCHEMA (LIST VIDEO)
-    // Menggunakan variabel $videos_eng yang dikirim dari index.php
-    if (isset($videos_eng) && !empty($videos_eng) && is_array($videos_eng)) {
+    // 4. VIDEO OBJECT & BREADCRUMB
+    if (isset($video) && is_array($video)) {
+        
+        // Helper Durasi untuk Schema (ISO 8601)
+        $iso_dur = 'PT0M0S';
+        if (function_exists('seo_duration_iso')) {
+            $iso_dur = seo_duration_iso($video['duration'] ?? 0);
+        } else {
+             $sec = (int)($video['duration'] ?? 0);
+             $h = floor($sec / 3600); $m = floor(($sec % 3600) / 60); $s = $sec % 60;
+             $iso_dur = "PT" . ($h > 0 ? $h . "H" : "") . ($m > 0 ? $m . "M" : "") . $s . "S";
+        }
+
+        $final_embed = '';
+        if (isset($sorted_servers) && !empty($sorted_servers)) {
+             $final_embed = $sorted_servers[0];
+        } elseif (!empty($video['embed_url'])) {
+             $final_embed = $video['embed_url'];
+        }
+        
+        $final_thumb = isset($ogImage) ? $ogImage : ($video['image_url'] ?? '');
+
+        // Video Object Nested
+        $video_object_nested = [
+            "@type" => "VideoObject",
+            "name" => $video['original_title'],
+            "description" => $schema_desc,
+            "thumbnailUrl" => [$final_thumb], 
+            "uploadDate" => date('c', strtotime($video['created_at'] ?? $video['cloned_at'] ?? 'now')),
+            "duration" => $iso_dur,
+            "contentUrl" => $schema_url, 
+            "embedUrl" => $final_embed,
+            "publisher" => [
+                "@type" => "Organization",
+                "name" => "JAVPORNSUB",
+                "logo" => [
+                    "@type" => "ImageObject",
+                    "url" => $base_url_clean . "/assets/uploads/68658059121ad-logo-1748094252.png"
+                ]
+            ],
+            "interactionStatistic" => [
+                "@type" => "InteractionCounter",
+                "interactionType" => ["@type" => "WatchAction"],
+                "userInteractionCount" => (int)($video['views'] ?? 0)
+            ]
+        ];
+
+        // Masukkan VideoObject ke dalam mainEntity WebPage
+        $web_page_schema['mainEntity'] = $video_object_nested;
+
+        // BREADCRUMB (Sinkron dengan Video.php)
+        // Jika variabel $breadcrumb_name dikirim dari video.php, gunakan itu.
+        $bc_label = isset($breadcrumb_name) ? $breadcrumb_name : "Video";
+
+        $graph[] = [
+            "@type" => "BreadcrumbList",
+            "itemListElement" => [
+                [
+                    "@type" => "ListItem",
+                    "position" => 1,
+                    "name" => "Home",
+                    "item" => $base_url_clean
+                ],
+                [
+                    "@type" => "ListItem",
+                    "position" => 2,
+                    "name" => $bc_label, // <-- Nama Kode Video di Breadcrumb Schema
+                    "item" => $schema_url
+                ]
+            ]
+        ];
+    }
+
+    $graph[] = $web_page_schema;
+
+    // 5. MOVIE SCHEMA (Halaman Index)
+    if (!isset($video) && isset($videos_eng) && !empty($videos_eng)) {
         foreach ($videos_eng as $v) {
             $v_title = stripslashes($v['original_title']);
-            $desc_raw = !empty($v['description']) ? stripslashes($v['description']) : "";
-            $v_desc = strip_tags($desc_raw); 
-            if (strlen($v_desc) < 5) $v_desc = "Watch " . $v_title . " JAV English Subtitle & Indo Sub Uncensored.";
-            $v_desc_final = mb_substr($v_desc, 0, 300);
-            $v_studio = !empty($v['studio']) ? stripslashes($v['studio']) : "JAV Admin";
-            $v_link = rtrim(BASE_URL, '/') . '/' . $v['slug'];
-            $v_thumb = !empty($v['image_url']) ? $v['image_url'] : "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/Big_buck_bunny_poster_big.jpg/1200px-Big_buck_bunny_poster_big.jpg";
+            $v_desc = mb_substr(strip_tags($v['description'] ?? "Watch " . $v_title), 0, 300);
+            $v_link = $base_url_clean . '/' . $v['slug'];
+            $v_thumb = !empty($v['image_url']) ? $v['image_url'] : "";
             $v_date = date('Y-m-d', strtotime($v['created_at'] ?? 'now'));
 
             $graph[] = [
                 "@type" => "Movie",
                 "name" => $v_title,
-                "description" => $v_desc_final,
+                "description" => $v_desc,
                 "image" => $v_thumb,
                 "dateCreated" => $v_date,
                 "url" => $v_link,
-                "director" => [ "@type" => "Person", "name" => $v_studio ],
+                "director" => [ "@type" => "Person", "name" => "JAV Admin" ],
                 "aggregateRating" => [ 
                     "@type" => "AggregateRating", 
                     "ratingValue" => "4.".rand(6,9), 
