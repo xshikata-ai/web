@@ -103,7 +103,7 @@ header {
 /* CONTENT & GRID */
 .container { padding: 30px 4%; max-width: 1600px; margin: 0 auto; min-height: 60vh; }
 .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-left: 15px; border-left: 4px solid var(--primary); }
-.section-title { font-size: 18px; font-weight: 700; color: #eee; text-transform: uppercase; }
+.section-title { font-size: 14px; font-weight: 700; color: #eee; text-transform: uppercase; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 15px; }
 
 /* =========================================
@@ -196,7 +196,7 @@ footer { background-color: #000; padding: 10px 4% 10px 4%; margin-top: 20px; bor
 
     .hamburger { display: flex; } 
     .grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-    .section-title { font-size: 16px; }
+    .section-title { font-size: 14px; }
     .container { padding: 20px 3%; }
     .footer-wrapper { flex-direction: column; gap: 30px; text-align: left; }
     .footer-heading { justify-content: flex-start; }
