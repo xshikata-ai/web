@@ -1,12 +1,12 @@
 <?php
-// File: video.php (SEO RANK 1: LSI Alt Text + Absolute URLs + Smart Code Title)
+// File: video.php (TITLE FIX: EXACT ORIGINAL TITLE)
 require_once __DIR__ . '/include/config.php';
 require_once __DIR__ . '/include/database.php';
 
 $videoSlug = $_GET['slug'] ?? null;
 $video = $videoSlug ? getVideoBySlugFromDB($videoSlug) : null;
 
-// --- 1. JIKA VIDEO TIDAK DITEMUKAN (TAMPILAN 404 CANTIK) ---
+// --- 1. JIKA VIDEO TIDAK DITEMUKAN ---
 if (!$video) {
     http_response_code(404);
     $full_page_title = "404 Not Found - JAVPORNSUB";
@@ -23,8 +23,7 @@ if (!$video) {
     exit;
 }
 
-// --- 2. FUNGSI BANTUAN SEO (HELPER) ---
-// Memaksa URL menjadi Absolute (https://...) agar Pratinjau Link muncul
+// --- 2. FUNGSI BANTUAN SEO ---
 if (!function_exists('seo_absolute_url')) {
     function seo_absolute_url($path) {
         if (empty($path)) return BASE_URL . 'assets/img/no-thumb.jpg';
@@ -32,7 +31,6 @@ if (!function_exists('seo_absolute_url')) {
         return rtrim(BASE_URL, '/') . '/' . ltrim($path, '/');
     }
 }
-// Format Durasi ISO 8601 (Syarat Rich Snippet Google)
 if (!function_exists('seo_duration_iso')) {
     function seo_duration_iso($seconds) {
         $seconds = (int)$seconds;
@@ -42,45 +40,43 @@ if (!function_exists('seo_duration_iso')) {
         return "PT" . ($h > 0 ? $h . "H" : "") . ($m > 0 ? $m . "M" : "") . $s . "S";
     }
 }
-// Format Menit untuk Tampilan User
-if (!function_exists('format_duration_min')) {
-    function format_duration_min($seconds) {
-        if (!$seconds) return '00:00';
-        $minutes = floor($seconds / 60);
-        $seconds = $seconds % 60;
-        return sprintf("%02d:%02d", $minutes, $seconds);
-    }
-}
-// Ekstrak KODE SAJA dari Judul (Cth: NTRD-114 dari NTRD-114-SUB...)
-if (!function_exists('extract_video_code')) {
-    function extract_video_code($title) {
-        // Regex: Cari pola Huruf-Angka di awal kalimat
-        if (preg_match('/^([A-Z0-9]+-\d+)/i', $title, $matches)) {
+if (!function_exists('extract_video_code_clean')) {
+    function extract_video_code_clean($title) {
+        if (preg_match('/([A-Z]{2,5}-[A-Z0-9]{0,3}-?\d{2,6})/i', $title, $matches)) {
             return strtoupper($matches[1]);
         }
-        // Fallback: Ambil 20 karakter pertama jika regex gagal
-        return mb_strimwidth($title, 0, 20, "...");
+        return null; 
     }
 }
 
-// --- 3. KONFIGURASI SEO VARIABEL (Dikirim ke Header.php) ---
-// Judul Halaman: [Judul Asli] - [Brand]
-$full_page_title = $video['original_title'] . " - JAVPORNSUB";
+// --- 3. KONFIGURASI JUDUL & SEO ---
+$raw_title = $video['original_title'];
+$detected_code = extract_video_code_clean($raw_title);
 
-// Deskripsi: Sisipkan Keyword + Potongan Deskripsi Asli
-$desc_snippet = !empty($video['description']) ? strip_tags($video['description']) : $video['original_title'];
-$desc_snippet = mb_strimwidth($desc_snippet, 0, 150, "...");
-$site_desc = "Watch " . $video['original_title'] . " English Subtitle & JAV Sub Indo. Streaming JAV Uncensored Free. " . $desc_snippet;
+// A. JUDUL HALAMAN (KEMBALI KE ASLI SESUAI REQUEST)
+// Menggunakan Judul Asli dari Database tanpa modifikasi regex
+$full_page_title = $raw_title . " - JAVPORNSUB";
 
-// Keywords: Judul + Aktris + LSI
+// B. BREADCRUMB (Tetap menggunakan Kode agar rapi)
+$breadcrumb_name = $detected_code ? $detected_code : "Watch Video";
+
+// C. META DESCRIPTION (Full Content)
+// Mengambil deskripsi full tanpa pemotongan
+$site_desc = !empty($video['description']) ? strip_tags($video['description']) : $raw_title;
+
+// D. KEYWORDS (Tetap dioptimalkan untuk SEO)
 $actress_list = !empty($video['actresses']) ? $video['actresses'] : '';
-$site_keywords = "jav sub indo, jav english sub, " . str_replace(' ', ', ', $video['original_title']) . ", " . $actress_list . ", streaming jav, nonton jav";
+$base_keywords = "jav sub indo, jav english sub, streaming jav, nonton jav";
+if ($detected_code) {
+    $site_keywords = $detected_code . ", " . $detected_code . " sub indo, " . $detected_code . " english sub, " . str_replace(' ', ', ', $raw_title) . ", " . $actress_list . ", " . $base_keywords;
+} else {
+    $site_keywords = str_replace(' ', ', ', $raw_title) . ", " . $actress_list . ", " . $base_keywords;
+}
 
-// Gambar Utama (OG Image): Wajib Absolute URL
 $ogImage = seo_absolute_url($video['image_url']);
 $canonical_url = BASE_URL . $video['slug'];
 
-// --- 4. LOGIKA SERVER VIDEO ---
+// --- 4. LOGIKA SERVER ---
 $sorted_servers = [];
 if ($video) {
     $all_urls = [];
@@ -91,7 +87,7 @@ if ($video) {
     }
     $all_urls = array_unique(array_filter($all_urls));
     
-    // Sorting Server (VH -> SW -> DD -> Others)
+    // Sorting
     $vh = []; $sw = []; $dd = []; $others = [];
     $vh_dom = ['earnvids', 'dintezuvio', 'dingtezuni'];
     $sw_dom = ['streamhg', 'hglink', 'gradehplus'];
@@ -112,57 +108,12 @@ if ($video) {
 require_once __DIR__ . '/templates/header.php';
 ?>
 
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "BreadcrumbList",
-  "itemListElement": [{
-    "@type": "ListItem",
-    "position": 1,
-    "name": "Home",
-    "item": "<?= BASE_URL; ?>"
-  },{
-    "@type": "ListItem",
-    "position": 2,
-    "name": "Video",
-    "item": "<?= $canonical_url; ?>"
-  }]
-}
-</script>
-
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "VideoObject",
-  "name": <?= json_encode($video['original_title']); ?>,
-  "description": <?= json_encode($site_desc); ?>,
-  "thumbnailUrl": [ <?= json_encode($ogImage); ?> ],
-  "uploadDate": "<?= date('c', strtotime($video['created_at'] ?? $video['cloned_at'] ?? 'now')); ?>",
-  "duration": "<?= seo_duration_iso($video['duration'] ?? 0); ?>",
-  "contentUrl": "<?= $canonical_url; ?>",
-  "embedUrl": "<?= htmlspecialchars($sorted_servers[0] ?? ''); ?>",
-  "publisher": {
-    "@type": "Organization",
-    "name": "JAVPORNSUB",
-    "logo": {
-      "@type": "ImageObject",
-      "url": "<?= BASE_URL; ?>assets/uploads/68658059121ad-logo-1748094252.png"
-    }
-  },
-  "interactionStatistic": {
-    "@type": "InteractionCounter",
-    "interactionType": { "@type": "WatchAction" },
-    "userInteractionCount": <?= (int)($video['views'] ?? 0); ?>
-  }
-}
-</script>
-
 <div class="container">
     
     <nav class="breadcrumb-nav" style="margin-bottom: 15px; font-size: 13px; color: #888;">
         <a href="<?= BASE_URL; ?>" style="color: #aaa; text-decoration: none;">Home</a> 
         <span style="margin: 0 5px;">/</span> 
-        <span style="color: var(--primary);">Watch Video</span>
+        <span style="color: var(--primary); font-weight:bold;"><?= htmlspecialchars($breadcrumb_name); ?></span>
     </nav>
 
     <div class="video-hero-block">
@@ -172,10 +123,11 @@ require_once __DIR__ . '/templates/header.php';
         
         <div class="video-action-bar">
             <div class="video-main-header">
-                <h1 class="hero-title"><?= htmlspecialchars($video['original_title']); ?></h1>
+                <h1 class="hero-title"><?= htmlspecialchars($raw_title); ?></h1>
+                
                 <div class="hero-meta">
                     <span class="hero-badge quality"><?= htmlspecialchars($video['quality'] ?? 'HD'); ?></span>
-                    <span class="hero-badge duration"><i class="fas fa-clock"></i> <?= format_duration_min($video['duration'] ?? 0); ?></span>
+                    <span class="hero-badge duration"><i class="fas fa-clock"></i> <?= formatDurationToMinutes($video['duration'] ?? 0); ?></span>
                     <span class="hero-badge date"><i class="fas fa-calendar-alt"></i> <?= htmlspecialchars(date('d M Y', strtotime($video['cloned_at']))); ?></span>
                     <span class="hero-badge views" style="color:#888;"><i class="fas fa-eye"></i> <?= number_format($video['views']); ?> Views</span>
                 </div>
@@ -208,7 +160,7 @@ require_once __DIR__ . '/templates/header.php';
             <div id="info-panel" class="explorer-panel active">
                 <div class="info-layout">
                     <div class="info-poster">
-                        <img src="<?= htmlspecialchars($ogImage); ?>" alt="Watch <?= htmlspecialchars($video['original_title']); ?> Full HD Uncensored">
+                        <img src="<?= htmlspecialchars($ogImage); ?>" alt="Watch <?= htmlspecialchars($raw_title); ?>">
                     </div>
                     <div class="info-details">
                         <div class="meta-tags-group">
@@ -243,7 +195,9 @@ require_once __DIR__ . '/templates/header.php';
                         <div class="synopsis-box">
                             <h3>Synopsis</h3>
                             <div class="synopsis-text is-collapsible">
-                                <p><?= nl2br(htmlspecialchars($video['description'])); ?></p>
+                                <p>
+                                    <?= nl2br(htmlspecialchars($video['description'])); ?> 
+                                </p>
                             </div>
                             <span class="read-more-trigger">Read More</span>
                         </div>
@@ -266,22 +220,20 @@ require_once __DIR__ . '/templates/header.php';
                     <?php 
                     $imgs = array_filter(array_map('trim', explode(',', $video['gallery_image_urls']))); 
                     
-                    // LSI KEYWORDS ROTATION (Teknik SEO Pro)
-                    // Alt text akan berganti-ganti untuk setiap gambar agar tidak dianggap spam oleh Google
+                    $code_var = $detected_code ? $detected_code . " " : "";
                     $lsi_keywords = [
-                        "Watch Full HD", 
-                        "Streaming JAV Free", 
-                        "Uncensored JAV", 
-                        "Download Sub Indo", 
-                        "English Subtitle"
+                        $code_var . "Full Movie", 
+                        $code_var . "Streaming Free", 
+                        $code_var . "Uncensored", 
+                        "Download " . $code_var . "Sub Indo", 
+                        "Watch " . $code_var . "English Sub"
                     ];
                     $lsi_count = count($lsi_keywords);
 
                     foreach ($imgs as $idx => $img): 
-                        $abs_img = seo_absolute_url($img); // Paksa Absolute URL
-                        // Generate Smart Alt Text
+                        $abs_img = seo_absolute_url($img);
                         $keyword = $lsi_keywords[$idx % $lsi_count];
-                        $smart_alt = htmlspecialchars($video['original_title']) . " - " . $keyword . " (Scene " . ($idx+1) . ")";
+                        $smart_alt = $keyword . " (Scene " . ($idx+1) . ")";
                     ?>
                         <a href="<?= htmlspecialchars($abs_img); ?>" class="gallery-item" data-index="<?= $idx; ?>">
                             <img src="<?= htmlspecialchars($abs_img); ?>" loading="lazy" alt="<?= $smart_alt; ?>">
@@ -330,15 +282,18 @@ require_once __DIR__ . '/templates/header.php';
                     <?php foreach ($relatedVideos as $rel): 
                         $rel_title = stripslashes($rel['original_title']);
                         
-                        // JUDUL RELATED: HANYA KODE (Misal: NTRD-114)
-                        $rel_display = extract_video_code($rel_title);
+                        // Ekstrak kode untuk tampilan Related
+                        $rel_code = extract_video_code_clean($rel_title);
+                        $rel_display = $rel_code ? $rel_code : mb_strimwidth($rel_title, 0, 20, "...");
 
                         $rel_link = BASE_URL . $rel['slug'];
                         $rel_img = seo_absolute_url($rel['image_url']);
                         $rel_cat = !empty($rel['category_name']) ? $rel['category_name'] : 'JAV';
-                        $rel_dur = format_duration_min($rel['duration']);
-                        // Smart Alt untuk Related
-                        $rel_alt = "Watch " . htmlspecialchars($rel_title) . " - " . $rel_cat;
+                        
+                        // DURASI SESUAI REQUEST (Index Style)
+                        $rel_dur = formatDurationToMinutes($rel['duration']);
+
+                        $rel_alt = "Watch " . ($rel_code ? $rel_code : $rel_title);
                     ?>
                     <a href="<?= $rel_link; ?>" class="video-card" title="<?= htmlspecialchars($rel_title); ?>">
                         <div class="thumbnail-container">
@@ -347,7 +302,9 @@ require_once __DIR__ . '/templates/header.php';
                             <div class="portrait-info-overlay">
                                 <div class="portrait-meta">
                                     <span class="meta-quality"><?= htmlspecialchars($rel['quality'] ?? 'HD'); ?></span>
-                                    <?php if ($rel_dur): ?><span class="meta-duration"><?= htmlspecialchars($rel_dur); ?></span><?php endif; ?>
+                                    <?php if ($rel_dur): ?>
+                                        <span class="meta-duration"><?= $rel_dur; ?></span>
+                                    <?php endif; ?>
                                     <div class="portrait-title"><?= htmlspecialchars($rel_display); ?></div>
                                 </div>
                             </div>
